@@ -8,113 +8,148 @@
    2. Add before </body>:
         <script src="/burd-player/burd-player.js"></script>
    3. Edit tracks.json with your audio files.
-   4. Done.
+   4. (Optional) Load FX plugins before this script:
+        <script src="/burd-player/my-fx.js"></script>
+   5. Done.
 
-   AUDIO FILES: Place MP3s anywhere on your server.
-                Paths in tracks.json are relative to your domain root.
-                Example: "/audio/mysong.mp3"
+   ─────────────────────────────────────────────────────────────
+   FX PLUGIN API
+   ─────────────────────────────────────────────────────────────
+   Register a custom effect BEFORE this script runs, or any
+   time after — the system checks window.BTBPlugins on boot
+   and exposes window.BTBPlayer.registerFX() at runtime.
+
+   OPTION A — Pre-boot (simplest):
+     window.BTBPlugins = window.BTBPlugins || [];
+     window.BTBPlugins.push({
+       name: 'myeffect',          // unique key, lowercase
+       label: 'My Effect',        // shown in FX dropdown
+       sens: 1.1,                 // default sensitivity (0.1–1.5)
+       brt:  0.90,                // default brightness  (0.3–1.0)
+
+       // Optional custom controls rendered below sens/brt/mirror
+       controls: [
+         { id: 'speed',  label: 'Speed',  type: 'range',  min: 0.1, max: 3, step: 0.05, default: 1.0 },
+         { id: 'invert', label: 'Invert', type: 'toggle', default: false },
+         { id: 'mode',   label: 'Mode',   type: 'select', default: 'bounce',
+           options: [
+             { value: 'bounce', label: 'Bounce' },
+             { value: 'sweep',  label: 'Sweep'  },
+           ]
+         },
+       ],
+
+       init(ctx) {},              // called once when FX is selected
+       draw(ctx, state) {         // called every animation frame
+         // ctx   — the LED helper API (see below)
+         // state — live audio/beat data + custom control values
+         //   state.beat.b / .m / .h / .p  — beat energies
+         //   state.sens                    — sensitivity slider
+         //   state.brt                     — brightness slider
+         //   state.controls.speed          — your custom controls
+         //   state.controls.invert
+         //   state.controls.mode
+       }
+     });
+
+   OPTION B — Post-boot (dynamic):
+     BTBPlayer.registerFX({ name:'myeffect', label:'My Effect', ... });
+
+   ─────────────────────────────────────────────────────────────
+   LED HELPER API  (the `ctx` object passed to draw/init)
+   ─────────────────────────────────────────────────────────────
+     ctx.setLED(col, row, h, s, l, paletteT)
+     ctx.COLS / ctx.ROWS / ctx.CELL / ctx.phase
+     ctx.colT(c)   — normalize column to 0-1
+     ctx.canvas / ctx.gc / ctx.freq / ctx.waveD
+
+   ─────────────────────────────────────────────────────────────
+   AUDIO STATE  (the `state` object passed to draw)
+   ─────────────────────────────────────────────────────────────
+     state.beat.b / .m / .h / .p
+     state.sens / state.brt
+     state.controls   — your plugin's custom control values
    ============================================================ */
 
 (function () {
 
 /* ============================================================
-   ##  CONFIGURATION  - Edit anything in this section
+   ##  CONFIGURATION
    ============================================================ */
 
 const CFG = {
-
-  /* -- TRACKS ----------------------------------------------
-     Path to your tracks.json file.
-     Can be absolute ("/burd-player/tracks.json")
-     or relative to the page ("burd-player/tracks.json").     */
   tracksUrl: '/burd-player/tracks.json',
-
-  /* -- PLAYER LABEL ----------------------------------------
-     Text shown in the mini player header.                    */
   playerLabel: '&#x266B; Burd',
-
-  /* -- BAND NAME -------------------------------------------
-     Shown in the expanded panel under track title.           */
   bandName: 'Burd The Band',
-
-  /* -- DEFAULT VOLUME (0.0 - 1.0) -------------------------  */
   defaultVolume: 0.85,
-
-  /* -- DEFAULT PANEL OPACITY (0.08 - 1.0) -----------------
-     How transparent the player panels are.                   */
   defaultOpacity: 0.45,
-
-  /* -- DEFAULT MIRROR (true/false) ------------------------
-     Mirror the LED visualization left/right.                 */
   defaultMirror: true,
-
-  /* -- PAGE WRAP ID ----------------------------------------
-     ID of the element that wraps your page content.
-     When FG mode is active this element fades out.
-     Set to null to disable the fade effect.                  */
   pageWrapId: 'btb-page-wrap',
-
-  /* -- FG FADE DURATION (seconds) -------------------------
-     How long the page content takes to fade when
-     toggling the LED canvas to foreground mode.              */
   fgFadeDuration: '2s',
-
-  /* -- RANDOM PRESET ON LOAD (true/false) -----------------
-     Pick a random color palette each page load.              */
   randomPreset: true,
-
-  /* -- RANDOM FX ON LOAD (true/false) ---------------------
-     Pick a random LED effect each page load.                 */
   randomFX: true,
-
-  /* -- SHOW DISCO TIP BUBBLE (true/false) -----------------
-     Show the "Try Disco Mode!" speech bubble on first visit. */
   showTip: true,
-
-  /* -- LED GRID SIZE ---------------------------------------
-     Target pixel size of each LED dot.
-     Smaller = more dots = heavier on CPU.
-     Recommended: 13-24. Default: 17.                         */
   ledSize: 17,
-  ledSizeMobile: 13,   /* Used when viewport < 500px wide    */
-
-  /* -- COLOR PRESETS ---------------------------------------
-     Each preset is [colorA, colorB, colorC] as RGB arrays.
-     These are the 3-stop gradient palette options.           */
+  ledSizeMobile: 13,
   colorPresets: [
     { name: 'Cyan->Blue->Pink',   colors: [[0,255,204],[0,68,255],[255,0,170]] },
-    { name: 'Fire',             colors: [[180,0,0],[255,100,0],[255,220,0]] },
+    { name: 'Fire',               colors: [[180,0,0],[255,100,0],[255,220,0]] },
     { name: 'Purple->Red->Gold',  colors: [[120,0,200],[220,0,60],[255,180,0]] },
-    { name: 'Rainbow',          colors: [[255,0,0],[0,255,0],[0,0,255]] },
+    { name: 'Rainbow',            colors: [[255,0,0],[0,255,0],[0,0,255]] },
   ],
-
-  /* -- DEFAULT PALETTE (index into colorPresets) ----------
-     Used if randomPreset is false.                           */
   defaultPreset: 0,
-
-  /* -- FX SETTINGS -----------------------------------------
-     sens: sensitivity (0.1-1.5)
-     brt:  brightness  (0.3-1.0)
-     Available fx: 'spectrum', 'rain', 'waveform', 'starfield' */
   fx: {
     spectrum:  { sens: 1.1, brt: 0.90 },
     rain:      { sens: 1.1, brt: 0.90 },
     waveform:  { sens: 1.2, brt: 0.90 },
     starfield: { sens: 1.5, brt: 0.90 },
   },
-
-  /* -- DEFAULT FX (used if randomFX is false) -------------  */
   defaultFX: 'spectrum',
-
-  /* -- AVAILABLE FX (shown as buttons in the player) ------
-     Remove any you don't want offered to the user.           */
   availableFX: ['spectrum', 'rain', 'waveform', 'starfield'],
-
 };
 
 /* ============================================================
-   END CONFIGURATION - Do not edit below this line
+   END CONFIGURATION
    ============================================================ */
+
+// -- Plugin registry ------------------------------------------
+const _plugins = new Map();
+
+function _registerPlugin(plug) {
+  if (!plug || !plug.name) { console.warn('[BTBPlayer] Plugin missing name:', plug); return; }
+  const key = plug.name.toLowerCase();
+  _plugins.set(key, {
+    name:     key,
+    label:    plug.label  || (plug.name.charAt(0).toUpperCase() + plug.name.slice(1)),
+    sens:     plug.sens   !== undefined ? plug.sens   : 1.1,
+    brt:      plug.brt    !== undefined ? plug.brt    : 0.90,
+    mirror:   plug.mirror !== undefined ? plug.mirror : null,
+    controls: Array.isArray(plug.controls) ? plug.controls : [],
+    init:     typeof plug.init === 'function' ? plug.init : () => {},
+    draw:     typeof plug.draw === 'function' ? plug.draw : () => {},
+  });
+  if (_booted) _appendPluginButton(key);
+}
+
+function _drainPluginQueue() {
+  const q = window.BTBPlugins;
+  if (Array.isArray(q)) q.forEach(_registerPlugin);
+}
+
+let _booted = false;
+
+function _appendPluginButton(key) {
+  const plug = _plugins.get(key);
+  if (!plug) { console.warn('[BTBPlayer] _appendPluginButton: no plug for key', key); return; }
+  const sel = document.getElementById('btb-fx-select');
+  if (!sel) { console.warn('[BTBPlayer] _appendPluginButton: btb-fx-select not found'); return; }
+  if (sel.querySelector(`option[value="${key}"]`)) return;
+  const opt = document.createElement('option');
+  opt.value = key;
+  opt.textContent = plug.label;
+  sel.appendChild(opt);
+  if (!CFG.fx[key]) CFG.fx[key] = { sens: plug.sens, brt: plug.brt };
+}
 
 // -- State ----------------------------------------------------
 let TRACKS = [];
@@ -127,12 +162,12 @@ let discoFading = false;
 let cvFront = false;
 let PAL = CFG.colorPresets[CFG.defaultPreset].colors.map(c=>[...c]);
 
+// Session storage for plugin custom control values
+// key: "pluginName.controlId" -> current value
+const _pluginControlValues = new Map();
+
 // -- Inject HTML ----------------------------------------------
 function _buildHTML() {
-  const fxBtns = CFG.availableFX.map((fx,i) =>
-    `<button class="btb-fxc${i===0?' btb-on':''}" data-fx="${fx}" onclick="btbSetFX('${fx}',this)">${fx.charAt(0).toUpperCase()+fx.slice(1)}</button>`
-  ).join('');
-
   const presetBtns = CFG.colorPresets.map((_,i) =>
     `<button class="btb-pp" id="btb-pp${i}" title="${CFG.colorPresets[i].name}" onclick="btbApplyPreset(${i})"></button>`
   ).join('');
@@ -208,7 +243,7 @@ function _buildHTML() {
   <div id="btb-dc">
     <div id="btb-dc-fx-row">
       <span class="btb-dcl">FX</span>
-      ${fxBtns}
+      <select id="btb-fx-select" onchange="btbSetFX(this.value)"></select>
     </div>
     <div id="btb-dc-sl-row">
       <div class="btb-dcsr">
@@ -221,6 +256,7 @@ function _buildHTML() {
       </div>
       <button class="btb-tog${CFG.defaultMirror?' btb-on':''}" id="btb-tog-mirror" onclick="btbTogMirror()">&#x21C4; Mirror</button>
     </div>
+    <div id="btb-dc-custom-row"></div>
     <div id="btb-dc-pal-row">
       <span class="btb-pal-label">Palette</span>
       <div class="btb-cs-group"><span class="btb-cs-num">A</span><input type="color" id="btb-cp0" value="#00ffcc" oninput="btbUpdatePalette()"></div>
@@ -455,23 +491,148 @@ function _finishStopDisco(){
   if(raf){cancelAnimationFrame(raf);raf=null;}
 }
 
-function btbSetFX(fx,btn){
-  curFX=fx;
-  document.querySelectorAll('.btb-fxc').forEach(b=>b.classList.remove('btb-on'));
-  if(btn)btn.classList.add('btb-on');
-  const d=CFG.fx[fx]||{sens:1.1,brt:0.90};
-  document.getElementById('btb-sens').value=d.sens;
-  document.getElementById('btb-brt').value=d.brt;
-  if(fx==='rain')_initRain();
-  if(fx==='starfield')_initStars();
+function _setMirror(on) {
+  doMirror = on;
+  document.getElementById('btb-tog-mirror').classList.toggle('btb-on', on);
 }
-window.btbSetFX=btbSetFX;
 
-function btbTogMirror(){
-  doMirror=!doMirror;
-  document.getElementById('btb-tog-mirror').classList.toggle('btb-on',doMirror);
+// -- FX switching ---------------------------------------------
+function btbSetFX(fx) {
+  curFX = fx;
+
+  // Keep dropdown in sync
+  const sel = document.getElementById('btb-fx-select');
+  if (sel && sel.value !== fx) sel.value = fx;
+
+  const plug = _plugins.get(fx);
+
+  // Load sens/brt/mirror defaults
+  const d = CFG.fx[fx] || { sens: 1.1, brt: 0.90 };
+  const sens   = plug && plug.sens   !== undefined ? plug.sens   : d.sens;
+  const brt    = plug && plug.brt    !== undefined ? plug.brt    : d.brt;
+  const mirror = plug && plug.mirror !== undefined ? plug.mirror : CFG.defaultMirror;
+
+  document.getElementById('btb-sens').value = sens;
+  document.getElementById('btb-brt').value  = brt;
+  _setMirror(mirror);
+
+  // Built-in inits
+  if (fx === 'rain')      _initRain();
+  if (fx === 'starfield') _initStars();
+
+  // Plugin init
+  if (plug && discoOn) plug.init(_ledCtx());
+
+  // Render custom controls for this plugin
+  _renderCustomControls(plug);
 }
-window.btbTogMirror=btbTogMirror;
+window.btbSetFX = btbSetFX;
+
+function btbTogMirror() {
+  _setMirror(!doMirror);
+}
+window.btbTogMirror = btbTogMirror;
+
+// -- Plugin custom controls -----------------------------------
+
+/**
+ * Build (or clear) the custom controls row for the active plugin.
+ * Values persist in _pluginControlValues for the session.
+ */
+function _renderCustomControls(plug) {
+  const row = document.getElementById('btb-dc-custom-row');
+  if (!row) return;
+
+  row.innerHTML = '';
+  row.classList.remove('btb-has-controls');
+
+  if (!plug || !Array.isArray(plug.controls) || plug.controls.length === 0) return;
+
+  // Section label
+  const lbl = document.createElement('span');
+  lbl.className = 'btb-cust-label';
+  lbl.textContent = 'Controls';
+  row.appendChild(lbl);
+
+  plug.controls.forEach(ctrl => {
+    const storeKey = plug.name + '.' + ctrl.id;
+    const stored = _pluginControlValues.get(storeKey);
+    const val = stored !== undefined ? stored : ctrl.default;
+    if (stored === undefined) _pluginControlValues.set(storeKey, val);
+
+    if (ctrl.type === 'range') {
+      const wrap = document.createElement('div');
+      wrap.className = 'btb-cust-range';
+
+      const label = document.createElement('span');
+      label.className = 'btb-cust-range-label';
+      label.textContent = ctrl.label;
+      wrap.appendChild(label);
+
+      const input = document.createElement('input');
+      input.type  = 'range';
+      input.min   = ctrl.min  !== undefined ? ctrl.min  : 0;
+      input.max   = ctrl.max  !== undefined ? ctrl.max  : 1;
+      input.step  = ctrl.step !== undefined ? ctrl.step : 0.01;
+      input.value = val;
+      input.oninput = () => _pluginControlValues.set(storeKey, parseFloat(input.value));
+      wrap.appendChild(input);
+
+      row.appendChild(wrap);
+
+    } else if (ctrl.type === 'toggle') {
+      const btn = document.createElement('button');
+      btn.className = 'btb-cust-toggle' + (val ? ' btb-on' : '');
+      btn.textContent = ctrl.label;
+      btn.onclick = () => {
+        const next = !_pluginControlValues.get(storeKey);
+        _pluginControlValues.set(storeKey, next);
+        btn.classList.toggle('btb-on', next);
+      };
+      row.appendChild(btn);
+
+    } else if (ctrl.type === 'select') {
+      const wrap = document.createElement('div');
+      wrap.className = 'btb-cust-select-wrap';
+
+      const label = document.createElement('span');
+      label.className = 'btb-cust-select-label';
+      label.textContent = ctrl.label;
+      wrap.appendChild(label);
+
+      const sel = document.createElement('select');
+      sel.className = 'btb-cust-select';
+      (ctrl.options || []).forEach(opt => {
+        const o = document.createElement('option');
+        o.value       = opt.value !== undefined ? opt.value : opt;
+        o.textContent = opt.label !== undefined ? opt.label : opt;
+        if (String(o.value) === String(val)) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => _pluginControlValues.set(storeKey, sel.value);
+      wrap.appendChild(sel);
+
+      row.appendChild(wrap);
+    }
+  });
+
+  row.classList.add('btb-has-controls');
+}
+
+/**
+ * Returns a plain object of current values for a plugin's custom controls.
+ * Passed as state.controls in every draw() call.
+ */
+function _getPluginControls(plug) {
+  if (!plug || !Array.isArray(plug.controls)) return {};
+  const out = {};
+  plug.controls.forEach(ctrl => {
+    const storeKey = plug.name + '.' + ctrl.id;
+    const stored = _pluginControlValues.get(storeKey);
+    out[ctrl.id] = stored !== undefined ? stored : ctrl.default;
+  });
+  return out;
+}
 
 function btbTogFront(){
   cvFront=!cvFront;
@@ -507,7 +668,13 @@ const pkH=[],gradCache=new Map();
 const _getSens=()=>parseFloat(document.getElementById('btb-sens').value);
 const _getBrt=()=>parseFloat(document.getElementById('btb-brt').value);
 
-function _initLED(){_resizeLED();_initRain();_initStars();for(let i=0;i<COLS;i++)pkH[i]=0;gradCache.clear();}
+function _initLED(){
+  _resizeLED();_initRain();_initStars();
+  for(let i=0;i<COLS;i++)pkH[i]=0;
+  gradCache.clear();
+  const plug=_plugins.get(curFX);
+  if(plug) plug.init(_ledCtx());
+}
 function _initRain(){rain=Array.from({length:COLS},()=>({y:-10,speed:0,active:false,bright:0,t:0}));}
 function _initStars(){stars=Array.from({length:280},()=>({x:(Math.random()-.5)*2,y:(Math.random()-.5)*2,z:Math.random(),pz:0}));}
 function _resizeLED(){
@@ -549,6 +716,24 @@ function setLED(c,r,h,s,l,palT){
   }else{_dot(c,r,fh,fs,fl);}
 }
 
+function _ledCtx(){
+  return {
+    setLED,
+    get COLS(){ return COLS; },
+    get ROWS(){ return ROWS; },
+    get CELL(){ return CELL; },
+    get phase(){ return phase; },
+    colT: c => c / Math.max(1, COLS - 1),
+    get canvas(){ return cv; },
+    get gc(){ return gc; },
+    get freq(){ return freq; },
+    get waveD(){ return waveD; },
+    palSample,
+    palHSL,
+  };
+}
+
+// -- Beat detection -------------------------------------------
 const HIST=43;
 const bHist={b:new Float32Array(HIST),m:new Float32Array(HIST),h:new Float32Array(HIST)};
 let bPtr=0;
@@ -574,6 +759,7 @@ function _updateBeats(){
   beat.p=_rawBand(90,200)*.75;
 }
 
+// -- Main loop ------------------------------------------------
 function _ledLoop(){
   raf=requestAnimationFrame(_ledLoop);
   gc.fillStyle='#000';gc.fillRect(0,0,cv.width,cv.height);
@@ -583,6 +769,19 @@ function _ledLoop(){
   _updateBeats();phase+=0.016;
   gc.fillStyle='#000';gc.fillRect(0,0,cv.width,cv.height);
   const colT=c=>c/Math.max(1,COLS-1);
+
+  const plug=_plugins.get(curFX);
+  if(plug){
+    plug.draw(_ledCtx(), {
+      beat:     { b: beat.b, m: beat.m, h: beat.h, p: beat.p },
+      sens:     _getSens(),
+      brt:      _getBrt(),
+      controls: _getPluginControls(plug),
+    });
+    return;
+  }
+
+  // Built-in effects
   switch(curFX){
     case 'spectrum': _fxSpectrum(colT); break;
     case 'rain':     _fxRain(colT);     break;
@@ -591,6 +790,7 @@ function _ledLoop(){
   }
 }
 
+// -- Built-in effects -----------------------------------------
 function _fxSpectrum(colT){
   const S=_getSens(),maxBin=Math.floor(BL*.72);
   for(let c=0;c<COLS;c++){
@@ -689,7 +889,12 @@ function _boot(){
   _initAudio();
   _initPresets();
 
-  // Apply starting preset
+  _drainPluginQueue();
+  if (_plugins.size === 0) {
+    console.warn('[BTBPlayer] No plugins found. Did you load fx/*.js before burd-player.js?');
+  }
+  _plugins.forEach((plug, key) => _appendPluginButton(key));
+
   const presetIdx = CFG.randomPreset
     ? Math.floor(Math.random()*CFG.colorPresets.length)
     : CFG.defaultPreset;
@@ -697,16 +902,15 @@ function _boot(){
   _drawPrev();
   _resizeLED();
 
-  // Apply starting FX
+  const allFX = [..._plugins.keys()];
   const fxKey = CFG.randomFX
-    ? CFG.availableFX[Math.floor(Math.random()*CFG.availableFX.length)]
-    : CFG.defaultFX;
-  btbSetFX(fxKey, document.querySelector(`.btb-fxc[data-fx="${fxKey}"]`));
+    ? allFX[Math.floor(Math.random() * allFX.length)]
+    : (allFX.includes(CFG.defaultFX) ? CFG.defaultFX : allFX[0]);
+  if (fxKey) btbSetFX(fxKey);
 
   btbSetAlpha(CFG.defaultOpacity);
   raf = requestAnimationFrame(_ledLoop);
 
-  // Load tracks from JSON
   fetch(CFG.tracksUrl)
     .then(r=>r.json())
     .then(data=>{
@@ -725,16 +929,24 @@ function _boot(){
         '<div style="padding:20px;text-align:center;font-size:11px;color:var(--btb-tmut);letter-spacing:2px">Could not load tracks.json</div>';
     });
 
-  // Fade in mini player
   setTimeout(()=>document.getElementById('btb-mini').classList.add('btb-ready'),100);
   _initTip();
+
+  _booted = true;
 }
 
-// Boot when DOM is ready
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',_boot);
-}else{
-  _boot();
+// -- Public API -----------------------------------------------
+window.BTBPlayer = {
+  registerFX(plug){ _registerPlugin(plug); },
+  get plugins(){ return [..._plugins.keys()]; },
+  palSample,
+  palHSL,
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => setTimeout(_boot, 0));
+} else {
+  setTimeout(_boot, 0);
 }
 
 })();

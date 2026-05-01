@@ -3,58 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Website</title>
-
-  <!--
-    ═══════════════════════════════════════════════════════
-    BURD PLAYER — Step 1: Add the stylesheet to your <head>
-    Change the path if your burd-player folder is elsewhere.
-    ═══════════════════════════════════════════════════════
-  -->
-  <link rel="stylesheet" href="/burd-player/burd-player.css">
-
-  <!-- Your own styles go here -->
-  <style>
-    body {
-      background: #000;
-      color: #fff;
-      font-family: sans-serif;
-      margin: 0;
-    }
-
-    /* If you want the LED canvas to sit behind your page content
-       and have it fade when the FG button is pressed, wrap your
-       page content in a div with id="btb-page-wrap"           */
-    #btb-page-wrap {
-      position: relative;
-      z-index: 2;
-      min-height: 100vh;
-    }
-  </style>
+  <title>Burd Player</title>
+  <link rel="stylesheet" href="burd-player/burd-player.css">
 </head>
 <body>
-
-  <!--
-    Wrap your page content in #btb-page-wrap so the LED canvas
-    sits behind it. This is optional — remove the wrapper if
-    you don't want the FG/BG fade effect.
-  -->
   <div id="btb-page-wrap">
-
-    <h1>My Website</h1>
-    <p>Your page content goes here. The music player floats in
-       the bottom-right corner automatically.</p>
-
-  </div><!-- end #btb-page-wrap -->
-
+    <h1>Burd Player</h1>
+    <p>Drop-in music player with LED disco visualizer.</p>
+  </div>
 
   <!--
     ═══════════════════════════════════════════════════════
-    BURD PLAYER — Step 2: Add the script before </body>
-    That's it. The player injects itself automatically.
+    FX PLUGINS — add or remove any line to plug/unplug it.
+    Each file is one self-contained effect.
+    Load ALL of them before burd-player.js.
     ═══════════════════════════════════════════════════════
   -->
-  <script src="/burd-player/burd-player.js"></script>
 
+  <!-- Built-in effects (re-implemented as plugins) -->
+  <script src="burd-player/fx/fx-spectrum.js"></script>
+  <script src="burd-player/fx/fx-rain.js"></script>
+  <script src="burd-player/fx/fx-waveform.js"></script>
+  <script src="burd-player/fx/fx-starfield.js"></script>
+
+  <!-- Extra effects — comment out any you don't want -->
+  <script src="burd-player/fx/fx-ripple.js"></script>
+  <script src="burd-player/fx/fx-plasma.js"></script>
+  <script src="burd-player/fx/fx-fireflies.js"></script>
+  <script src="burd-player/fx/fx-rings.js"></script>
+  <script src="burd-player/fx/fx-lavalamp.js"></script>
+  <script src="burd-player/fx/fx-neonriot.js"></script>
+  <script src="burd-player/fx/fx-hyperspacevortex.js"></script>
+  <script src="burd-player/fx/fx-koipond.js"></script>
+  <script src="burd-player/fx/fx-nebuladrift.js"></script>
+  <script src="burd-player/fx/fx-fractalbeyond.js"></script>
+  <script src="burd-player/fx/fx-theghostinthemachine.js"></script>
+  <script src="burd-player/fx/fx-controltest.js"></script>
+  
+  
+  
+
+  <!-- Player ALWAYS loads last -->
+  <script src="burd-player/burd-player.js"></script>
 </body>
 </html>

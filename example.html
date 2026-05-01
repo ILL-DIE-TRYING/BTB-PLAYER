@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Website</title>
+
+  <!--
+    ═══════════════════════════════════════════════════════
+    BURD PLAYER — Step 1: Add the stylesheet to your <head>
+    Change the path if your burd-player folder is elsewhere.
+    ═══════════════════════════════════════════════════════
+  -->
+  <link rel="stylesheet" href="/burd-player/burd-player.css">
+
+  <!-- Your own styles go here -->
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      margin: 0;
+    }
+
+    /* If you want the LED canvas to sit behind your page content
+       and have it fade when the FG button is pressed, wrap your
+       page content in a div with id="btb-page-wrap"           */
+    #btb-page-wrap {
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+
+  <!--
+    Wrap your page content in #btb-page-wrap so the LED canvas
+    sits behind it. This is optional — remove the wrapper if
+    you don't want the FG/BG fade effect.
+  -->
+  <div id="btb-page-wrap">
+
+    <h1>My Website</h1>
+    <p>Your page content goes here. The music player floats in
+       the bottom-right corner automatically.</p>
+
+  </div><!-- end #btb-page-wrap -->
+
+
+  <!--
+    ═══════════════════════════════════════════════════════
+    BURD PLAYER — Step 2: Add the script before </body>
+    That's it. The player injects itself automatically.
+    ═══════════════════════════════════════════════════════
+  -->
+  <script src="/burd-player/burd-player.js"></script>
+
+</body>
+</html>

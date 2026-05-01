@@ -1,4 +1,4 @@
-# Burd Player — JavaScript Widget
+# BTB Player — JavaScript Widget
 
 A self-contained floating music player with LED disco visualizer.
 Drop it into any website with two lines of HTML.

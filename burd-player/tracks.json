@@ -1,14 +1,14 @@
 [
   {
-    "title":    "Boulders",
-    "album":    "FogRoll",
-    "url":      "/audio/boulders.mp3",
+    "title":    "Track1",
+    "album":    "MyAlbum",
+    "url":      "/audio/track1.mp3",
     "duration": "4:24"
   },
   {
-    "title":    "RdySetGo",
-    "album":    "FogRoll",
-    "url":      "/audio/rdysetgo.mp3",
+    "title":    "Track2",
+    "album":    "MyAlbum",
+    "url":      "/audio/track1.mp3",
     "duration": "3:41"
   }
 ]

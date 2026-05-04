@@ -859,6 +859,8 @@ document.addEventListener('keydown',e=>{
 });
 
 // -- Autoplay on first interaction ----------------------------
+
+
 function btbTryAutoplay(){
   if(!autoplayPending||autoplayStarted)return;
   autoplayStarted=true; autoplayPending=false;
@@ -918,10 +920,13 @@ function _boot(){
       _buildTrackList();
       if(TRACKS.length>0){
         btbLoadT(0,false);
-        autoplayPending=true;
-        ['click','keydown','touchstart','scroll'].forEach(ev=>{
-          document.addEventListener(ev,btbTryAutoplay,{once:true,passive:true});
-        });
+        autoplayPending=false;
+        const _playerEl = document.getElementById('btb-mini');
+        if (_playerEl) {
+          ['click', 'keydown', 'touchstart'].forEach(ev => {
+            _playerEl.addEventListener(ev, btbTryAutoplay, { once: true, passive: true });
+          });
+        }
       }
     })
     .catch(()=>{
@@ -939,6 +944,8 @@ function _boot(){
 window.BTBPlayer = {
   registerFX(plug){ _registerPlugin(plug); },
   get plugins(){ return [..._plugins.keys()]; },
+  get analyser(){ return analyser; },
+  get freq(){ return freq; },
   palSample,
   palHSL,
 };
